@@ -30,9 +30,16 @@ Stored links look like:
 [[agent-shell:SESSION-ID?agent=codex&dir=/path/to/project][Session title]]
 #+end_example
 
-** Bookmarks
+** Emacs bookmarks
 
-Run =M-x agent-shell-links-bookmark-set= from an =agent-shell= buffer to store an Emacs bookmark for the current session.
+Enable bookmark support from your init file:
+
+#+begin_src emacs-lisp
+(require 'agent-shell-links)
+(agent-shell-links-bookmark-setup)
+#+end_src
+
+Then run =M-x bookmark-set= from an =agent-shell= buffer to store a bookmark for the current session.
 
 Jump back with =M-x bookmark-jump=.
 
@@ -45,6 +52,7 @@ Here is a complete example config using =use-package=:
   :after agent-shell
   :demand t
   :config
+  (agent-shell-links-bookmark-setup)
   (with-eval-after-load 'ol
     (org-link-set-parameters
      "agent-shell"

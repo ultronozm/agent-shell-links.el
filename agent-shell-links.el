@@ -27,7 +27,7 @@
 ;;
 ;; Loading this file does not register an Org link type or change
 ;; bookmark behavior.  Register the Org link type from your init file,
-;; and call `agent-shell-links-bookmark-set' to store an Emacs bookmark
+;; and enable bookmark support from your init file to use `bookmark-set'
 ;; for the current session.
 ;;
 ;; Org links look like:
@@ -41,8 +41,9 @@
 (require 'seq)
 (require 'subr-x)
 
+(defvar bookmark-make-record-function)
+
 (declare-function bookmark-prop-get "bookmark" (bookmark-name-or-record prop))
-(declare-function bookmark-store "bookmark" (name alist no-overwrite))
 (declare-function org-link-decode "ol" (text))
 (declare-function org-link-encode "ol" (text table))
 (declare-function org-link-store-props "ol" (&rest plist))
@@ -200,6 +201,23 @@ exists."
 
 ;;; Bookmarks
 
+;;;###autoload
+(defun agent-shell-links-bookmark-enable ()
+  "Make `bookmark-set' store the current `agent-shell' session in this buffer."
+  (setq-local bookmark-make-record-function
+              #'agent-shell-links-bookmark-make-record))
+
+;;;###autoload
+(defun agent-shell-links-bookmark-setup ()
+  "Enable `bookmark-set' support in `agent-shell' buffers.
+This adds `agent-shell-links-bookmark-enable' to
+`agent-shell-mode-hook' and enables it in live `agent-shell' buffers."
+  (interactive)
+  (add-hook 'agent-shell-mode-hook #'agent-shell-links-bookmark-enable)
+  (dolist (buffer (agent-shell-buffers))
+    (with-current-buffer buffer
+      (agent-shell-links-bookmark-enable))))
+
 (defun agent-shell-links-bookmark-make-record ()
   "Return a bookmark record for the current `agent-shell' session."
   (let* ((session (or (agent-shell-links--current-session)
@@ -214,23 +232,6 @@ exists."
           (cons 'agent identifier)
           (cons 'dir dir)
           (cons 'location description))))
-
-;;;###autoload
-(defun agent-shell-links-bookmark-set (name &optional no-overwrite)
-  "Set an Emacs bookmark named NAME for the current `agent-shell' session.
-With prefix argument NO-OVERWRITE, keep any existing bookmark named
-NAME and create another record with the same name."
-  (interactive
-   (let* ((session (or (agent-shell-links--current-session)
-                       (user-error "No active agent-shell session")))
-          (default (agent-shell-links--description session)))
-     (list (read-string (format-prompt "Set agent-shell bookmark" default)
-                        nil nil default)
-           current-prefix-arg)))
-  (require 'bookmark)
-  (pcase-let ((`(,_name . ,record) (agent-shell-links-bookmark-make-record)))
-    (bookmark-store name record no-overwrite)
-    (message "Stored agent-shell bookmark: %s" name)))
 
 ;;;###autoload
 (defun agent-shell-links-bookmark-jump (bookmark)
