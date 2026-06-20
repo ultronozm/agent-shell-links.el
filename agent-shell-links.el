@@ -74,18 +74,18 @@ parsing or Org's own link reader.")
 (defun agent-shell-links--build (session-id identifier dir)
   "Build an agent-shell link path from SESSION-ID, IDENTIFIER and DIR.
 IDENTIFIER and DIR are optional and omitted from the result when nil."
-  (let ((params '()))
-    (when identifier
-      (push (format "agent=%s"
-                    (agent-shell-links--encode (symbol-name identifier)))
-            params))
-    (when (and dir (not (string-empty-p dir)))
-      (push (format "dir=%s"
-                    (agent-shell-links--encode (expand-file-name dir)))
-            params))
+  (let* ((agent-param
+          (when identifier
+            (format "agent=%s"
+                    (agent-shell-links--encode (symbol-name identifier)))))
+         (dir-param
+          (when (and dir (not (string-empty-p dir)))
+            (format "dir=%s"
+                    (agent-shell-links--encode (expand-file-name dir)))))
+         (params (delq nil (list agent-param dir-param))))
     (concat (agent-shell-links--encode session-id)
             (when params
-              (concat "?" (string-join (nreverse params) "&"))))))
+              (concat "?" (string-join params "&"))))))
 
 (defun agent-shell-links--parse (path)
   "Parse link PATH into a list of session id, agent id, and directory."
