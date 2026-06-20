@@ -46,8 +46,6 @@
 (require 'map)
 (require 'seq)
 (require 'subr-x)
-(eval-when-compile
-  (require 'cl-lib))
 
 (defvar agent-shell-org-link--encode-chars
   '(?\s ?\t ?\n ?% ?& ?? ?= ?#)
@@ -55,7 +53,7 @@
 These are the characters that would otherwise confuse query
 parsing or Org's own link reader.")
 
-(cl-defun agent-shell-org-link--build (&key session-id identifier dir)
+(defun agent-shell-org-link--build (session-id identifier dir)
   "Build an agent-shell link path from SESSION-ID, IDENTIFIER and DIR.
 IDENTIFIER and DIR are optional and omitted from the result when nil."
   (let ((chars agent-shell-org-link--encode-chars)
@@ -73,19 +71,21 @@ IDENTIFIER and DIR are optional and omitted from the result when nil."
               (concat "?" (string-join (nreverse params) "&"))))))
 
 (defun agent-shell-org-link--parse (path)
-  "Parse link PATH into a (SESSION-ID . PARAMS) cons.
-PARAMS is an alist with symbol keys and decoded string values."
+  "Parse link PATH into a list of session id, agent id, and directory."
   (let* ((qpos (string-search "?" path))
          (session-id (org-link-decode (if qpos (substring path 0 qpos) path)))
          (query (and qpos (substring path (1+ qpos))))
-         (params (when query
-                   (mapcar (lambda (pair)
-                             (let* ((eq (string-search "=" pair))
-                                    (key (if eq (substring pair 0 eq) pair))
-                                    (val (if eq (substring pair (1+ eq)) "")))
-                               (cons (intern key) (org-link-decode val))))
-                           (split-string query "&" t)))))
-    (cons session-id params)))
+         agent
+         dir)
+    (dolist (pair (and query (split-string query "&" t)))
+      (let* ((eq (string-search "=" pair))
+             (key (if eq (substring pair 0 eq) pair))
+             (val (org-link-decode
+                   (if eq (substring pair (1+ eq)) ""))))
+        (pcase key
+          ("agent" (setq agent val))
+          ("dir" (setq dir val)))))
+    (list session-id agent dir)))
 
 (defun agent-shell-org-link--config-for-identifier (identifier)
   "Return the agent config whose :identifier matches IDENTIFIER (a symbol).
@@ -129,9 +129,7 @@ session, so other store functions can still run."
              (dir (ignore-errors (agent-shell-cwd)))
              (title (map-nested-elt state '(:session :title)))
              (link (agent-shell-org-link--build
-                    :session-id session-id
-                    :identifier identifier
-                    :dir dir)))
+                    session-id identifier dir)))
         (org-link-store-props
          :type "agent-shell"
          :link (concat "agent-shell:" link)
@@ -145,15 +143,14 @@ session, so other store functions can still run."
 Resumes the stored session, resolving the agent by identifier and
 binding `default-directory' to the stored directory when it still
 exists."
-  (pcase-let* ((`(,session-id . ,params) (agent-shell-org-link--parse path))
-               (agent (map-elt params 'agent))
+  (pcase-let* ((`(,session-id ,agent ,dir) (agent-shell-org-link--parse path))
                (identifier (and agent (intern-soft agent)))
-               (dir (map-elt params 'dir)))
+               (buffer (and (or (null agent) identifier)
+                            (agent-shell-org-link--buffer-for-session
+                             session-id identifier))))
     (when (or (null session-id) (string-empty-p session-id))
       (user-error "Agent-shell link has no session id"))
-    (if-let* (((or (null agent) identifier))
-              (buffer (agent-shell-org-link--buffer-for-session
-                       session-id identifier)))
+    (if buffer
         (agent-shell-org-link--display-buffer buffer)
       (let* ((config (or (agent-shell-org-link--config-for-identifier identifier)
                          (unless agent
