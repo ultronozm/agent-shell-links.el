@@ -179,33 +179,6 @@ starting another shell."
                                   default-directory)))
         (agent-shell-start :config config :session-id session-id)))))
 
-;;; Org links
-
-;;;###autoload
-(defun agent-shell-links-org-store ()
-  "Store an Org link to the current `agent-shell' session.
-Returns nil when not in an `agent-shell' buffer with an active session,
-so other store functions can still run."
-  (when-let* ((session (agent-shell-links--current-session)))
-    (let ((link (agent-shell-links--build
-                 (plist-get session :session-id)
-                 (plist-get session :identifier)
-                 (plist-get session :dir))))
-      (require 'ol)
-      (org-link-store-props
-       :type "agent-shell"
-       :link (concat "agent-shell:" link)
-       :description (agent-shell-links--description session))
-      link)))
-
-(defun agent-shell-links-org-follow (path &optional _arg)
-  "Follow an `agent-shell' Org link described by PATH.
-Resumes the stored session, resolving the agent by identifier and
-binding `default-directory' to the stored directory when it still
-exists."
-  (pcase-let ((`(,session-id ,agent ,dir) (agent-shell-links--parse path)))
-    (agent-shell-links-open-session session-id agent dir)))
-
 ;;; Bookmarks
 
 ;;;###autoload
@@ -248,6 +221,33 @@ This adds `agent-shell-links-bookmark-enable' to
    (bookmark-prop-get bookmark 'session-id)
    (bookmark-prop-get bookmark 'agent)
    (bookmark-prop-get bookmark 'dir)))
+
+;;; Org links
+
+;;;###autoload
+(defun agent-shell-links-org-store ()
+  "Store an Org link to the current `agent-shell' session.
+Returns nil when not in an `agent-shell' buffer with an active session,
+so other store functions can still run."
+  (when-let* ((session (agent-shell-links--current-session)))
+    (let ((link (agent-shell-links--build
+                 (plist-get session :session-id)
+                 (plist-get session :identifier)
+                 (plist-get session :dir))))
+      (require 'ol)
+      (org-link-store-props
+       :type "agent-shell"
+       :link (concat "agent-shell:" link)
+       :description (agent-shell-links--description session))
+      link)))
+
+(defun agent-shell-links-org-follow (path &optional _arg)
+  "Follow an `agent-shell' Org link described by PATH.
+Resumes the stored session, resolving the agent by identifier and
+binding `default-directory' to the stored directory when it still
+exists."
+  (pcase-let ((`(,session-id ,agent ,dir) (agent-shell-links--parse path)))
+    (agent-shell-links-open-session session-id agent dir)))
 
 (provide 'agent-shell-links)
 
