@@ -1,38 +1,45 @@
-;;; agent-shell-links.el --- Links to agent-shell sessions -*- lexical-binding: t; -*-
+;;; agent-shell-links.el --- Bookmarks and Org links for agent-shell sessions -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2026 Paul Nelson
+;; Copyright (C) 2026  Paul D. Nelson
 
-;; Author: Paul Nelson
-;; URL: https://github.com/xenodium/agent-shell
+;; Author: Paul D. Nelson <ultrono@gmail.com>
+;; Version: 0.0.1
+;; URL: https://github.com/ultronozm/agent-shell-links.el
 ;; Package-Requires: ((emacs "29.1") (agent-shell "0.56.1"))
+;; Keywords: convenience
 
-;; This package is free software; you can redistribute it and/or modify
+;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 3, or (at your option)
-;; any later version.
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
 
-;; This package is distributed in the hope that it will be useful,
+;; This program is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
+
+;; Resume `agent-shell' sessions (or jump to existing ones) via bookmarks
+;; and Org links.
 ;;
-;; Helpers for storing links to sessions in an agent's session store.
-;; Org links and Emacs bookmarks share the same session pointer:
-;; session id, agent identifier, and working directory.
+;; For bookmark support:
 ;;
-;; Loading this file does not register an Org link type or change
-;; bookmark behavior.  Register the Org link type from your init file,
-;; and enable bookmark support from your init file to use `bookmark-set'
-;; for the current session.
+;;  (agent-shell-links-bookmark-setup)
 ;;
-;; Org links look like:
+;; For Org link support:
 ;;
-;;   [[agent-shell:SESSION-ID?agent=claude-code&dir=/path/to/project][Title]]
+;;   (org-link-set-parameters
+;;    "agent-shell"
+;;    :follow #'agent-shell-links-org-follow
+;;    :store #'agent-shell-links-org-store)
+;;
+;; You can then link to `agent-shell' sessions via the usual commands,
+;; such as `bookmark-set', `bookmark-jump', `org-store-link' and
+;; `org-insert-link'.
 
 ;;; Code:
 
