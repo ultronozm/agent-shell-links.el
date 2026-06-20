@@ -50,10 +50,17 @@
 
 (defvar bookmark-make-record-function)
 
+(declare-function bookmark-get-filename "bookmark" (bookmark-name-or-record))
 (declare-function bookmark-prop-get "bookmark" (bookmark-name-or-record prop))
 (declare-function org-link-decode "ol" (text))
 (declare-function org-link-encode "ol" (text table))
 (declare-function org-link-store-props "ol" (&rest plist))
+
+(defvar agent-shell-links--strict-resume-advice-installed nil
+  "Non-nil when fallback prevention advice has been installed.")
+
+(defvar-local agent-shell-links--strict-resume-session-id nil
+  "Session id this buffer must resume without falling back to a new session.")
 
 (defvar agent-shell-links--encode-chars
   '(?\s ?\t ?\n ?% ?& ?? ?= ?#)
@@ -151,6 +158,42 @@ identifier to match it."
         title
       (format "agent-shell session %s" (plist-get session :session-id)))))
 
+(defun agent-shell-links--prevent-new-session-fallback (orig &rest args)
+  "Call ORIG with ARGS unless this is a failed strict resume fallback."
+  (let* ((shell-buffer (plist-get args :shell-buffer))
+         (session-id (and (buffer-live-p shell-buffer)
+                          (buffer-local-value
+                           'agent-shell-links--strict-resume-session-id
+                           shell-buffer))))
+    (if (and session-id (not (string-empty-p session-id)))
+        (progn
+          (display-warning
+           'agent-shell-links
+           (format "Could not resume agent-shell session %s; not starting a new session"
+                   session-id))
+          (let ((kill-buffer-query-functions nil))
+            (kill-buffer shell-buffer)))
+      (apply orig args))))
+
+(defun agent-shell-links--ensure-strict-resume-advice ()
+  "Install advice that prevents linked session resumes from falling back."
+  (unless agent-shell-links--strict-resume-advice-installed
+    (advice-add 'agent-shell--initiate-new-session
+                :around #'agent-shell-links--prevent-new-session-fallback)
+    (setq agent-shell-links--strict-resume-advice-installed t)))
+
+(defun agent-shell-links--mark-strict-resume (buffer session-id)
+  "Mark BUFFER as requiring a strict resume of SESSION-ID."
+  (agent-shell-links--ensure-strict-resume-advice)
+  (with-current-buffer buffer
+    (setq-local agent-shell-links--strict-resume-session-id session-id)
+    (agent-shell-subscribe-to
+     :shell-buffer buffer
+     :event 'init-finished
+     :on-event
+     (lambda (_event)
+       (setq-local agent-shell-links--strict-resume-session-id nil)))))
+
 ;;;###autoload
 (defun agent-shell-links-open-session (session-id &optional agent dir)
   "Open SESSION-ID in `agent-shell'.
@@ -162,6 +205,7 @@ starting another shell."
                            ((and (stringp agent)
                                  (not (string-empty-p agent)))
                             (intern-soft agent))))
+         (dir (and (stringp dir) (not (string-empty-p dir)) dir))
          (buffer (and (or (null agent) identifier)
                       (agent-shell-links--buffer-for-session
                        session-id identifier))))
@@ -169,15 +213,17 @@ starting another shell."
       (user-error "Agent-shell link has no session id"))
     (if buffer
         (agent-shell-links--display-buffer buffer)
+      (when (and dir (not (file-directory-p dir)))
+        (user-error "Agent-shell session directory no longer exists: %s" dir))
       (let* ((config (or (agent-shell-links--config-for-identifier identifier)
                          (unless agent
                            (agent-shell--resolve-preferred-config))
                          (agent-shell-select-config :prompt "Resume with agent: ")
                          (error "No agent config found")))
-             (default-directory (if (and dir (file-directory-p dir))
-                                    dir
-                                  default-directory)))
-        (agent-shell-start :config config :session-id session-id)))))
+             (default-directory (or dir default-directory)))
+        (let ((buffer (agent-shell-start :config config :session-id session-id)))
+          (agent-shell-links--mark-strict-resume buffer session-id)
+          buffer)))))
 
 ;;; Bookmarks
 
@@ -210,17 +256,22 @@ This adds `agent-shell-links-bookmark-enable' to
           (cons 'handler #'agent-shell-links-bookmark-jump)
           (cons 'session-id session-id)
           (cons 'agent identifier)
-          (cons 'dir dir)
+          (cons 'filename dir)
           (cons 'location description))))
 
 ;;;###autoload
 (defun agent-shell-links-bookmark-jump (bookmark)
   "Jump to an agent-shell BOOKMARK."
   (require 'bookmark)
-  (agent-shell-links-open-session
-   (bookmark-prop-get bookmark 'session-id)
-   (bookmark-prop-get bookmark 'agent)
-   (bookmark-prop-get bookmark 'dir)))
+  (let* ((filename (bookmark-get-filename bookmark))
+         (dir (or filename (bookmark-prop-get bookmark 'dir))))
+    (when (and dir (not (string-empty-p dir))
+               (not (file-directory-p dir)))
+      (user-error "Agent-shell bookmark directory no longer exists: %s" dir))
+    (agent-shell-links-open-session
+     (bookmark-prop-get bookmark 'session-id)
+     (bookmark-prop-get bookmark 'agent)
+     dir)))
 
 ;;; Org links
 
@@ -244,8 +295,7 @@ so other store functions can still run."
 (defun agent-shell-links-org-follow (path &optional _arg)
   "Follow an `agent-shell' Org link described by PATH.
 Resumes the stored session, resolving the agent by identifier and
-binding `default-directory' to the stored directory when it still
-exists."
+binding `default-directory' to the stored directory."
   (pcase-let ((`(,session-id ,agent ,dir) (agent-shell-links--parse path)))
     (agent-shell-links-open-session session-id agent dir)))
 

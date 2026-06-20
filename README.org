@@ -4,6 +4,8 @@ Small add-on for [[https://github.com/xenodium/agent-shell][agent-shell]] that s
 
 An =agent-shell= session pointer records the session id, the agent identifier, and the working directory.  Opening the pointer first reuses a live matching =agent-shell= buffer when one exists; otherwise it resumes the session through =agent-shell=.
 
+If the stored session can no longer be resumed, =agent-shell-links= warns and does not start a fresh session in its place.
+
 Loading this package only defines functions.  It does not change bookmark behavior or register an Org link type.  To use those features, you must call the setup functions from your init file.  See the Usage section below.
 
 * Usage
@@ -17,7 +19,7 @@ Loading this package only defines functions.  It does not change bookmark behavi
 
 Then run =M-x bookmark-set= from an =agent-shell= buffer to store a bookmark for the current session.
 
-Jump back with =M-x bookmark-jump=.
+Jump back with =M-x bookmark-jump=.  If the stored directory no longer exists, jumping to the bookmark raises an error instead of resuming the session in a different directory.
 
 ** Org links
 
@@ -32,6 +34,8 @@ Jump back with =M-x bookmark-jump=.
 #+end_src
 
 Then run =M-x org-store-link= from an =agent-shell= buffer and insert it with =M-x org-insert-link=.
+
+If the stored directory no longer exists, following the link raises an error instead of resuming the session in a different directory.
 
 Stored links look like:
 
