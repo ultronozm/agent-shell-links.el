@@ -1,0 +1,55 @@
+#+title: agent-shell-links: Org links and bookmarks for agent-shell sessions
+
+Small add-on for [[https://github.com/xenodium/agent-shell][agent-shell]] that stores stable pointers to agent sessions.
+
+An =agent-shell= session pointer records the session id, the agent identifier, and the working directory.  Opening the pointer first reuses a live matching =agent-shell= buffer when one exists; otherwise it resumes the session through =agent-shell=.
+
+Loading this package only defines functions.  It does not register an Org link type or change bookmark behavior.
+
+* Usage
+
+** Org links
+
+Register the Org link type from your init file:
+
+#+begin_src emacs-lisp
+(require 'agent-shell-links)
+
+(with-eval-after-load 'ol
+  (org-link-set-parameters
+   "agent-shell"
+   :follow #'agent-shell-links-org-follow
+   :store #'agent-shell-links-org-store))
+#+end_src
+
+Then run =M-x org-store-link= from an =agent-shell= buffer and insert it with =M-x org-insert-link=.
+
+Stored links look like:
+
+#+begin_example
+[[agent-shell:SESSION-ID?agent=codex&dir=/path/to/project][Session title]]
+#+end_example
+
+** Bookmarks
+
+Run =M-x agent-shell-links-bookmark-set= from an =agent-shell= buffer to store an Emacs bookmark for the current session.
+
+Jump back with =M-x bookmark-jump=.
+
+* Example configuration
+
+Here is a complete example config using =use-package=:
+
+#+begin_src emacs-lisp
+(use-package agent-shell-links
+  :after agent-shell
+  :demand t
+  :config
+  (with-eval-after-load 'ol
+    (org-link-set-parameters
+     "agent-shell"
+     :follow #'agent-shell-links-org-follow
+     :store #'agent-shell-links-org-store)))
+#+end_src
+
+If you do not use Org links, omit the =with-eval-after-load= form.  Bookmark support does not require Org.
