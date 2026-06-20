@@ -17,7 +17,7 @@ Loading this package only defines functions.  It does not change bookmark behavi
 
 Then run =M-x bookmark-set= from an =agent-shell= buffer to store a bookmark for the current session.
 
-Jump back with =M-x bookmark-jump=.  If the stored directory no longer exists, jumping to the bookmark raises an error instead of resuming the session in a different directory.
+Jump back with =M-x bookmark-jump=.
 
 ** Org links
 
@@ -32,8 +32,6 @@ Jump back with =M-x bookmark-jump=.  If the stored directory no longer exists, j
 #+end_src
 
 Then run =M-x org-store-link= from an =agent-shell= buffer and insert it with =M-x org-insert-link=.
-
-If the stored directory no longer exists, following the link raises an error instead of resuming the session in a different directory.
 
 Stored links look like:
 
