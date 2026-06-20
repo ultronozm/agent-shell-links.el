@@ -4,8 +4,6 @@ Small add-on for [[https://github.com/xenodium/agent-shell][agent-shell]] that s
 
 An =agent-shell= session pointer records the session id, the agent identifier, and the working directory.  Opening the pointer first reuses a live matching =agent-shell= buffer when one exists; otherwise it resumes the session through =agent-shell=.
 
-If the stored session can no longer be resumed, =agent-shell-links= warns and does not start a fresh session in its place.
-
 Loading this package only defines functions.  It does not change bookmark behavior or register an Org link type.  To use those features, you must call the setup functions from your init file.  See the Usage section below.
 
 * Usage
@@ -50,7 +48,6 @@ Here is a complete example config using [[https://github.com/progfolio/elpaca][e
 #+begin_src emacs-lisp
 (use-package agent-shell-links
   :ensure (:host github :repo "ultronozm/agent-shell-links.el")
-  :after agent-shell
   :demand
   :config
   (agent-shell-links-bookmark-setup)

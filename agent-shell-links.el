@@ -43,13 +43,24 @@
 
 ;;; Code:
 
-(require 'agent-shell)
 (require 'map)
 (require 'seq)
 (require 'subr-x)
 
+(defvar agent-shell--state)
+(defvar agent-shell-agent-configs)
+(defvar agent-shell-mode-hook)
+(defvar agent-shell-prefer-viewport-interaction)
 (defvar bookmark-make-record-function)
 
+(declare-function agent-shell--display-buffer "agent-shell" (buffer))
+(declare-function agent-shell--resolve-preferred-config "agent-shell" ())
+(declare-function agent-shell-buffers "agent-shell" ())
+(declare-function agent-shell-cwd "agent-shell" ())
+(declare-function agent-shell-select-config "agent-shell" (&rest args))
+(declare-function agent-shell-start "agent-shell" (&rest args))
+(declare-function agent-shell-subscribe-to "agent-shell" (&rest args))
+(declare-function agent-shell-viewport--show-buffer "agent-shell" (&rest args))
 (declare-function bookmark-get-filename "bookmark" (bookmark-name-or-record))
 (declare-function bookmark-prop-get "bookmark" (bookmark-name-or-record prop))
 (declare-function org-link-decode "ol" (text))
@@ -201,6 +212,7 @@ AGENT is an optional agent identifier, as a symbol or string.  DIR is an
 optional working directory.  If a live buffer already has the same
 session id and agent identifier, display that buffer instead of
 starting another shell."
+  (require 'agent-shell)
   (let* ((identifier (cond ((symbolp agent) agent)
                            ((and (stringp agent)
                                  (not (string-empty-p agent)))
@@ -240,9 +252,10 @@ This adds `agent-shell-links-bookmark-enable' to
 `agent-shell-mode-hook' and enables it in live `agent-shell' buffers."
   (interactive)
   (add-hook 'agent-shell-mode-hook #'agent-shell-links-bookmark-enable)
-  (dolist (buffer (agent-shell-buffers))
-    (with-current-buffer buffer
-      (agent-shell-links-bookmark-enable))))
+  (when (featurep 'agent-shell)
+    (dolist (buffer (agent-shell-buffers))
+      (with-current-buffer buffer
+        (agent-shell-links-bookmark-enable)))))
 
 (defun agent-shell-links-bookmark-make-record ()
   "Return a bookmark record for the current `agent-shell' session."
@@ -292,6 +305,7 @@ so other store functions can still run."
        :description (agent-shell-links--description session))
       link)))
 
+;;;###autoload
 (defun agent-shell-links-org-follow (path &optional _arg)
   "Follow an `agent-shell' Org link described by PATH.
 Resumes the stored session, resolving the agent by identifier and
