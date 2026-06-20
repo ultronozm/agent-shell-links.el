@@ -44,6 +44,8 @@
 (require 'agent-shell)
 (require 'ol)
 (require 'map)
+(require 'seq)
+(require 'subr-x)
 (eval-when-compile
   (require 'cl-lib))
 
@@ -93,6 +95,26 @@ Return nil when none matches."
                 (eq (map-elt config :identifier) identifier))
               agent-shell-agent-configs)))
 
+(defun agent-shell-org-link--buffer-for-session (session-id &optional identifier)
+  "Return a live `agent-shell' buffer for SESSION-ID.
+When IDENTIFIER is non-nil, require the buffer's agent config
+identifier to match it."
+  (seq-find (lambda (buffer)
+              (with-current-buffer buffer
+                (and (equal (map-nested-elt agent-shell--state '(:session :id))
+                            session-id)
+                     (or (null identifier)
+                         (eq (map-nested-elt agent-shell--state
+                                             '(:agent-config :identifier))
+                             identifier)))))
+            (agent-shell-buffers)))
+
+(defun agent-shell-org-link--display-buffer (buffer)
+  "Display agent-shell BUFFER, respecting viewport preference."
+  (if agent-shell-prefer-viewport-interaction
+      (agent-shell-viewport--show-buffer :shell-buffer buffer)
+    (agent-shell--display-buffer buffer)))
+
 ;;;###autoload
 (defun agent-shell-org-link-store ()
   "Store an Org link to the current `agent-shell' session.
@@ -125,18 +147,23 @@ binding `default-directory' to the stored directory when it still
 exists."
   (pcase-let* ((`(,session-id . ,params) (agent-shell-org-link--parse path))
                (agent (map-elt params 'agent))
+               (identifier (and agent (intern-soft agent)))
                (dir (map-elt params 'dir)))
     (when (or (null session-id) (string-empty-p session-id))
-      (user-error "agent-shell link has no session id"))
-    (let* ((config (or (agent-shell-org-link--config-for-identifier
-                        (and agent (intern agent)))
-                       (agent-shell--resolve-preferred-config)
-                       (agent-shell-select-config :prompt "Resume with agent: ")
-                       (error "No agent config found")))
-           (default-directory (if (and dir (file-directory-p dir))
-                                  dir
-                                default-directory)))
-      (agent-shell-start :config config :session-id session-id))))
+      (user-error "Agent-shell link has no session id"))
+    (if-let* (((or (null agent) identifier))
+              (buffer (agent-shell-org-link--buffer-for-session
+                       session-id identifier)))
+        (agent-shell-org-link--display-buffer buffer)
+      (let* ((config (or (agent-shell-org-link--config-for-identifier identifier)
+                         (unless agent
+                           (agent-shell--resolve-preferred-config))
+                         (agent-shell-select-config :prompt "Resume with agent: ")
+                         (error "No agent config found")))
+             (default-directory (if (and dir (file-directory-p dir))
+                                    dir
+                                  default-directory)))
+        (agent-shell-start :config config :session-id session-id)))))
 
 (org-link-set-parameters "agent-shell"
                          :follow #'agent-shell-org-link-follow
