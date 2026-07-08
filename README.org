@@ -6,6 +6,12 @@ An =agent-shell= session pointer records the session id, the agent identifier, a
 
 Loading this package only defines functions.  It does not change bookmark behavior or register an Org link type.  To use those features, you must call the setup functions from your init file.  See the Usage section below.
 
+* Installation
+
+Install =agent-shell-links= from this repository with your preferred package
+manager, or place =agent-shell-links.el= on your =load-path= and require it.
+The example configuration below shows one Elpaca setup.
+
 * Usage
 
 ** Emacs bookmarks
