@@ -54,6 +54,7 @@
 (defvar bookmark-make-record-function)
 
 (declare-function agent-shell--display-buffer "agent-shell" (buffer))
+(declare-function agent-shell--resolve-config-designator "agent-shell" (designator))
 (declare-function agent-shell--resolve-preferred-config "agent-shell" ())
 (declare-function agent-shell-buffers "agent-shell" ())
 (declare-function agent-shell-cwd "agent-shell" ())
@@ -127,9 +128,11 @@ IDENTIFIER and DIR are optional and omitted from the result when nil."
   "Return the agent config whose :identifier matches IDENTIFIER (a symbol).
 Return nil when none matches."
   (when identifier
-    (seq-find (lambda (config)
-                (eq (map-elt config :identifier) identifier))
-              agent-shell-agent-configs)))
+    (if (fboundp 'agent-shell--resolve-config-designator)
+        (agent-shell--resolve-config-designator identifier)
+      (seq-find (lambda (config)
+                  (eq (map-elt config :identifier) identifier))
+                agent-shell-agent-configs))))
 
 (defun agent-shell-links--buffer-for-session (session-id &optional identifier)
   "Return a live `agent-shell' buffer for SESSION-ID.
