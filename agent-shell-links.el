@@ -55,6 +55,7 @@
 
 (declare-function agent-shell--display-buffer "agent-shell" (buffer))
 (declare-function agent-shell--resolve-preferred-config "agent-shell" ())
+(declare-function agent-shell--resolved-agent-configs "agent-shell" ())
 (declare-function agent-shell-buffers "agent-shell" ())
 (declare-function agent-shell-cwd "agent-shell" ())
 (declare-function agent-shell-select-config "agent-shell" (&rest args))
@@ -129,7 +130,10 @@ Return nil when none matches."
   (when identifier
     (seq-find (lambda (config)
                 (eq (map-elt config :identifier) identifier))
-              agent-shell-agent-configs)))
+              ;; Older agent-shell versions stored only concrete configs.
+              (if (fboundp 'agent-shell--resolved-agent-configs)
+                  (agent-shell--resolved-agent-configs)
+                agent-shell-agent-configs))))
 
 (defun agent-shell-links--buffer-for-session (session-id &optional identifier)
   "Return a live `agent-shell' buffer for SESSION-ID.
